@@ -38,7 +38,7 @@ def main():
         temp_dict["id"] = i
 
         doc_flat = [item for sublist in doc for item in sublist]
-        vec = ft_model.wv[doc_flat]
+        vec = ft_model.wv[set(doc_flat)]
         temp_dict["data"] = vec.tolist()
         temp_dict["labels"] = labels_list[i]
         file_output_list.append(temp_dict)
@@ -46,7 +46,7 @@ def main():
     output_data["training_data"] = file_output_list
 
     # generate vector for each doc with labels
-    with open("training_data.json", "w") as outfile:
+    with open("training_data2.json", "w") as outfile:
         json.dump(output_data, outfile)
                 
         
