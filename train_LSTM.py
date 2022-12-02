@@ -5,9 +5,11 @@ import torch.optim as optim
 from load_training_data import load_data, load_tensors
 import numpy as np
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score
 import time
 import os
 from plots import plot_learning_curves
+import json
 
 class AverageMeter(object):
 	"""Computes and stores the average and current value"""
@@ -32,62 +34,123 @@ class LSTM(nn.Module):
     def __init__(self, embedding_dim):
         super(LSTM, self).__init__()
         hidden_dim = 64
+        hidden_dim2 = 2
         self.lstm = nn.LSTM(embedding_dim, hidden_dim, batch_first=True)
-        # self.fc = nn.Linear(hidden_dim, 2)
 
         # The linear layer that maps from hidden state space to tag space
         # Outcomes: abdominal, advanced-cad, alcohol-abuse, asp-for-mi, creatinine, dietsupp-2mos
         #   drug-abuse, english, hba1c, keto-1yr, major-diabetes, makes-decisions, mi-6mos
-        self.abdominal = nn.Linear(hidden_dim, 2)
-        self.advancedcad = nn.Linear(hidden_dim, 2)
-        self.alcoholabuse = nn.Linear(hidden_dim, 2)
-        self.aspformi = nn.Linear(hidden_dim, 2)
-        self.creatinine = nn.Linear(hidden_dim, 2)
-        self.dietsupp = nn.Linear(hidden_dim, 2)
-        self.drugabuse = nn.Linear(hidden_dim, 2)
-        self.english = nn.Linear(hidden_dim, 2)
-        self.hba1c = nn.Linear(hidden_dim, 2)
-        self.keto = nn.Linear(hidden_dim, 2)
-        self.diabetes = nn.Linear(hidden_dim, 2)
-        self.decisions = nn.Linear(hidden_dim, 2)
-        self.mi = nn.Linear(hidden_dim, 2)
+
+
+        ##### new
+        # self.abdominal = nn.RNN(hidden_dim, 2)
+        # self.advancedcad = nn.RNN(hidden_dim, 2)
+        # self.alcoholabuse = nn.RNN(hidden_dim, 2)
+        # self.aspformi = nn.RNN(hidden_dim, 2)
+        # self.creatinine = nn.RNN(hidden_dim, 2)
+        # self.dietsupp = nn.RNN(hidden_dim, 2)
+        # self.drugabuse = nn.RNN(hidden_dim, 2)
+        # self.english = nn.RNN(hidden_dim, 2)
+        # self.hba1c = nn.RNN(hidden_dim, 2)
+        # self.keto = nn.RNN(hidden_dim, 2)
+        # self.diabetes = nn.RNN(hidden_dim, 2)
+        # self.decisions = nn.RNN(hidden_dim, 2)
+        # self.mi = nn.RNN(hidden_dim, 2)
+
+
+        self.abdominal = nn.RNN(hidden_dim, hidden_dim2)
+        self.advancedcad = nn.RNN(hidden_dim, hidden_dim2)
+        self.alcoholabuse = nn.RNN(hidden_dim, hidden_dim2)
+        self.aspformi = nn.RNN(hidden_dim, hidden_dim2)
+        self.creatinine = nn.RNN(hidden_dim, hidden_dim2)
+        self.dietsupp = nn.RNN(hidden_dim, hidden_dim2)
+        self.drugabuse = nn.RNN(hidden_dim, hidden_dim2)
+        self.english = nn.RNN(hidden_dim, hidden_dim2)
+        self.hba1c = nn.RNN(hidden_dim, hidden_dim2)
+        self.keto = nn.RNN(hidden_dim, hidden_dim2)
+        self.diabetes = nn.RNN(hidden_dim, hidden_dim2)
+        self.decisions = nn.RNN(hidden_dim, hidden_dim2)
+        self.mi = nn.RNN(hidden_dim, hidden_dim2)
+
+        # self.abdominal_fc = nn.Linear(hidden_dim2, 2)
+        # self.advancedcad_fc = nn.Linear(hidden_dim2, 2)
+        # self.alcoholabuse_fc = nn.Linear(hidden_dim2, 2)
+        # self.aspformi_fc = nn.Linear(hidden_dim2, 2)
+        # self.creatinine_fc = nn.Linear(hidden_dim2, 2)
+        # self.dietsupp_fc = nn.Linear(hidden_dim2, 2)
+        # self.drugabuse_fc = nn.Linear(hidden_dim2, 2)
+        # self.english_fc = nn.Linear(hidden_dim2, 2)
+        # self.hba1c_fc = nn.Linear(hidden_dim2, 2)
+        # self.keto_fc = nn.Linear(hidden_dim2, 2)
+        # self.diabetes_fc = nn.Linear(hidden_dim2, 2)
+        # self.decisions_fc = nn.Linear(hidden_dim2, 2)
+        # self.mi_fc = nn.Linear(hidden_dim2, 2)
 
     def forward(self, input, lengths):
         sigmoid_fun = nn.Sigmoid()
+        relu_fun = nn.ReLU()
+
         batch_size, seq_len, feature_len = input.size()
         packed_input = torch.nn.utils.rnn.pack_padded_sequence(input, lengths, batch_first=True, enforce_sorted=False)
         output, _ = self.lstm(packed_input)
-        padded_output, lengths = torch.nn.utils.rnn.pad_packed_sequence(output, batch_first=False, total_length=seq_len)
+        
 
-        # hidden = torch.empty(size=[padded_output.shape[0],padded_output.shape[2]])
-        # for b in np.arange(len(padded_output)):
-        #     hidden[b] = padded_output[b][lengths[b]-1]
-        padded_output = padded_output.view(batch_size*seq_len, 64)
-        adjusted_lengths = [(l-1)*batch_size + i for i,l in enumerate(lengths)]
-        lengthTensor = torch.tensor(adjusted_lengths, dtype=torch.int64)
-        padded_output = padded_output.index_select(0,lengthTensor)
-        padded_output = padded_output.view(batch_size,64)
-        x = sigmoid_fun(padded_output) 
+        ###### New
+        inter_dict = {'abdominal': (self.abdominal(output)), 'advanced-cad': (self.advancedcad(output)), 'alcohol-abuse': (self.alcoholabuse(output)), 
+                    'asp-for-mi': (self.aspformi(output)), 'creatinine': (self.creatinine(output)), 'dietsupp-2mos': (self.dietsupp(output)), 
+                    'drug-abuse': (self.drugabuse(output)), 'english': (self.english(output)), 'hba1c': (self.hba1c(output)), 
+                    'keto-1yr': (self.keto(output)), 'major-diabetes': (self.diabetes(output)), 'makes-decisions': (self.decisions(output)), 
+                    'mi-6mos': (self.mi(output))}
+        
+        # inter_dict2 = {'abdominal': self.abdominal_fc, 'advanced-cad': self.advancedcad_fc, 'alcohol-abuse': self.alcoholabuse_fc, 
+        #             'asp-for-mi': self.aspformi_fc, 'creatinine': self.creatinine_fc, 'dietsupp-2mos': self.dietsupp_fc, 
+        #             'drug-abuse': self.drugabuse_fc, 'english': self.english_fc, 'hba1c': self.hba1c_fc, 
+        #             'keto-1yr': self.keto_fc, 'major-diabetes': self.diabetes_fc, 'makes-decisions': self.decisions_fc, 
+        #             'mi-6mos': self.mi_fc}
+        final_dict = {}
 
+        #### old
+        for k,v in inter_dict.items():
+            padded_output, lengths = torch.nn.utils.rnn.pad_packed_sequence(v[0], batch_first=False, total_length=seq_len)
+            padded_output = padded_output.view(batch_size*seq_len, 2)
+            adjusted_lengths = [(l-1)*batch_size + i for i,l in enumerate(lengths)]
+            lengthTensor = torch.tensor(adjusted_lengths, dtype=torch.int64)
+            padded_output = padded_output.index_select(0,lengthTensor)
+            padded_output = padded_output.view(batch_size,2)
+            final_dict[k] = sigmoid_fun(padded_output)
 
-        return {'abdominal': self.abdominal(x), 'advanced-cad': self.advancedcad(x), 'alcohol-abuse': self.alcoholabuse(x), 'asp-for-mi': self.aspformi(x), 'creatinine': self.creatinine(x), 
-        'dietsupp-2mos': self.dietsupp(x), 'drug-abuse': self.drugabuse(x), 'english': self.english(x), 'hba1c': self.hba1c(x), 'keto-1yr': self.keto(x), 'major-diabetes': self.diabetes(x), 'makes-decisions': self.decisions(x), 'mi-6mos': self.mi(x)}
+        return final_dict
+        # ######
 
+        # for k,v in inter_dict.items():
+        #     padded_output, lengths = torch.nn.utils.rnn.pad_packed_sequence(v[0], batch_first=False, total_length=seq_len)
+        #     padded_output = padded_output.view(batch_size*seq_len, 30)
+        #     adjusted_lengths = [(l-1)*batch_size + i for i,l in enumerate(lengths)]
+        #     lengthTensor = torch.tensor(adjusted_lengths, dtype=torch.int64)
+        #     padded_output = padded_output.index_select(0,lengthTensor)
+        #     padded_output = padded_output.view(batch_size,30)
 
-    def get_loss(self, net_output, ground_truth, labels):
-        abdominal_loss = F.cross_entropy(net_output['abdominal'], ground_truth[:,labels.index('abdominal')])
-        advancedcad_loss = F.cross_entropy(net_output['advanced-cad'], ground_truth[:,labels.index('advanced-cad')])
-        alcoholabuse_loss = F.cross_entropy(net_output['alcohol-abuse'], ground_truth[:,labels.index('alcohol-abuse')])
-        aspformi_loss = F.cross_entropy(net_output['asp-for-mi'], ground_truth[:,labels.index('asp-for-mi')])
-        creatinine_loss = F.cross_entropy(net_output['creatinine'], ground_truth[:,labels.index('creatinine')])
-        dietsupp_loss = F.cross_entropy(net_output['dietsupp-2mos'], ground_truth[:,labels.index('dietsupp-2mos')])
-        drugabuse_loss = F.cross_entropy(net_output['drug-abuse'], ground_truth[:,labels.index('drug-abuse')])
-        english_loss = F.cross_entropy(net_output['english'], ground_truth[:,labels.index('english')])
-        hba1c_loss = F.cross_entropy(net_output['hba1c'], ground_truth[:,labels.index('hba1c')])
-        keto_loss = F.cross_entropy(net_output['keto-1yr'], ground_truth[:,labels.index('keto-1yr')])
-        diabetes_loss = F.cross_entropy(net_output['major-diabetes'], ground_truth[:,labels.index('major-diabetes')])
-        decisions_loss = F.cross_entropy(net_output['makes-decisions'], ground_truth[:,labels.index('makes-decisions')])
-        mi_loss = F.cross_entropy(net_output['mi-6mos'], ground_truth[:,labels.index('mi-6mos')])
+        #     activated_output = relu_fun(padded_output)
+        #     final_dict[k] = sigmoid_fun(inter_dict2[k](activated_output))
+        #     # final_dict[k] = sigmoid_fun(padded_output)
+
+        return final_dict
+        #
+
+    def get_loss(self, net_output, ground_truth, labels, criterion):
+        abdominal_loss = criterion(net_output['abdominal'], ground_truth[:,labels.index('abdominal')])
+        advancedcad_loss = criterion(net_output['advanced-cad'], ground_truth[:,labels.index('advanced-cad')])
+        alcoholabuse_loss = criterion(net_output['alcohol-abuse'], ground_truth[:,labels.index('alcohol-abuse')])
+        aspformi_loss = criterion(net_output['asp-for-mi'], ground_truth[:,labels.index('asp-for-mi')])
+        creatinine_loss = criterion(net_output['creatinine'], ground_truth[:,labels.index('creatinine')])
+        dietsupp_loss = criterion(net_output['dietsupp-2mos'], ground_truth[:,labels.index('dietsupp-2mos')])
+        drugabuse_loss = criterion(net_output['drug-abuse'], ground_truth[:,labels.index('drug-abuse')])
+        english_loss = criterion(net_output['english'], ground_truth[:,labels.index('english')])
+        hba1c_loss = criterion(net_output['hba1c'], ground_truth[:,labels.index('hba1c')])
+        keto_loss = criterion(net_output['keto-1yr'], ground_truth[:,labels.index('keto-1yr')])
+        diabetes_loss = criterion(net_output['major-diabetes'], ground_truth[:,labels.index('major-diabetes')])
+        decisions_loss = criterion(net_output['makes-decisions'], ground_truth[:,labels.index('makes-decisions')])
+        mi_loss = criterion(net_output['mi-6mos'], ground_truth[:,labels.index('mi-6mos')])
         loss = abdominal_loss + advancedcad_loss + alcoholabuse_loss + aspformi_loss + aspformi_loss + creatinine_loss + \
             dietsupp_loss + drugabuse_loss + english_loss + hba1c_loss + keto_loss + diabetes_loss + decisions_loss + mi_loss
 
@@ -97,14 +160,23 @@ class LSTM(nn.Module):
 def compute_batch_accuracy(outputs, targets, labels):
     with torch.no_grad():
 
-        batch_size = targets.size(0)
-        accuracies = {}
+        all_outputs_dict = {}
+        eval_dict = {'accuracy': {}, 'precision': {}, 'recall': {}, 'f1': {}}
+        eval_list = [accuracy_score, precision_score, recall_score, f1_score]
+        accuracies = []
+
         for i, label in enumerate(labels):
-            _, pred = outputs[label].max(1)
-            correct = pred.eq(targets[:,i]).sum()
-            accuracies[label] = correct * 100.0 / batch_size
-        mean_acc = sum(accuracies.values())/13
-        return mean_acc, accuracies
+            _, y_pred = outputs[label].max(1)
+            y_true = targets[:,i]
+            eval_dict = {'accuracy': {}, 'precision': {}, 'recall': {}, 'f1': {}}
+            for eval_idx, key in enumerate(eval_dict.keys()):
+                eval_dict[key] = eval_list[eval_idx](y_true, y_pred)
+            all_outputs_dict[label] = eval_dict.copy()
+            accuracies.append(eval_dict['f1'])
+        
+        #returns mean f1 score
+        mean_acc = sum(accuracies)/13
+        return mean_acc, all_outputs_dict
 
 def train_model(model, device, train_loader, criterion, optimizer, epoch, labels):
     batch_time = AverageMeter()
@@ -130,11 +202,11 @@ def train_model(model, device, train_loader, criterion, optimizer, epoch, labels
 
         # forward + backward + optimize
         outputs = model(input, lengths)
-        loss_train, losses_train = model.get_loss(outputs, target, labels)
+
+                
+        loss_train, losses_train = model.get_loss(outputs, target, labels, criterion)
         mean_accuracy_train, accuracies_train = compute_batch_accuracy(outputs, target, labels)
         
-
-
         # total_loss_list.append(loss_train.item())
         loss_train.backward()
         optimizer.step()
@@ -166,7 +238,7 @@ def evaluate_model(model, device, data_loader, criterion, print_freq=10):
             target = target.to(device)
 
             outputs = model(input, lengths)
-            loss_validation, losses_validation = model.get_loss(outputs, target, labels)
+            loss_validation, losses_validation = model.get_loss(outputs, target, labels, criterion)
             mean_accuracy_validation, accuracies_validation = compute_batch_accuracy(outputs, target, labels)
             # measure elapsed time
             batch_time.update(time.time() - end)
@@ -174,10 +246,6 @@ def evaluate_model(model, device, data_loader, criterion, print_freq=10):
 
             losses.update(loss_validation.item(), target.size(0))
             accuracy.update(mean_accuracy_validation, target.size(0))
-
-            # y_true = target.detach().to('cpu').numpy().tolist()
-            # y_pred = outputs.detach().to('cpu').max(1)[1].numpy().tolist()
-            # results.extend(list(zip(y_true, y_pred)))
 
 
     # return losses.avg, accuracy.avg, results
@@ -187,9 +255,9 @@ if __name__ == "__main__":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
     NUM_EPOCHS = 5
-    BATCH_SIZE = 32
+    BATCH_SIZE = 4
     USE_CUDA = True  # Set 'True' if you want to use GPU
-    NUM_WORKERS = 0
+    NUM_WORKERS = 2
 
     device = torch.device("cuda" if torch.cuda.is_available() and USE_CUDA else "cpu")
     torch.manual_seed(1)
@@ -199,7 +267,7 @@ if __name__ == "__main__":
 
     model = LSTM(embedding_dim = 100)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters())
+    optimizer = optim.Adam(model.parameters(), lr=0.02 )
 
 
     training_data_path = 'training_data.json'
@@ -211,7 +279,6 @@ if __name__ == "__main__":
 
     trainloader = torch.utils.data.DataLoader(train_tensor, batch_size=10, shuffle=False)
     validationloader = torch.utils.data.DataLoader(dataset=validation_tensor, batch_size=BATCH_SIZE, shuffle=False)
-    # total_loss_list = []
 
     train_losses, train_accuracies = [], []
     valid_losses, valid_accuracies = [], []
@@ -220,8 +287,7 @@ if __name__ == "__main__":
     criterion.to(device)
     best_val_acc = 0
 
-
-    for epoch in range(1, 5):
+    for epoch in range(1, NUM_EPOCHS):
         train_loss, train_accuracy = train_model(model, device, trainloader, criterion, optimizer, epoch, labels)
         valid_loss, valid_accuracy = evaluate_model(model, device, validationloader, criterion)
 
@@ -231,20 +297,21 @@ if __name__ == "__main__":
         train_accuracies.append(train_accuracy)
         valid_accuracies.append(valid_accuracy.item())
 
-        is_best = valid_accuracy > best_val_acc  # let's keep the model that has the best accuracy, but you can also use another metric.
+        is_best = valid_accuracy > best_val_acc  # let's keep the model that has the best f1-score
         if is_best:
             best_val_acc = valid_accuracy
-            torch.save(model, os.path.join("LSTM.pth"))
+            print(best_val_acc)
+            torch.save(model, "LSTM_RNN_test.pth")
         
     plot_learning_curves(train_losses, valid_losses, train_accuracies, valid_accuracies)
 
     #### test model
-    model = torch.load("LSTM.pth")
+    test_model = torch.load("LSTM_RNN_test.pth")
     testing_data_path = 'testing_data.json'
     x_test,y_test,len_test = load_data(testing_data_path, "testing_data")
     test_dataset, labels = load_tensors(x_test,y_test,len_test)
     test_loader = torch.utils.data.DataLoader(dataset=test_dataset, batch_size=len(test_dataset), shuffle=False)
-    model.eval()
+    test_model.eval()
     with torch.no_grad():
         for data in test_loader:
             # get the inputs
@@ -253,9 +320,13 @@ if __name__ == "__main__":
             if device.type == "cuda":
                 inputs, targets = inputs.cuda(), targets.cuda()
 
-            outputs = model(inputs, lengths)
-            test_mean_acc, test_accuracies = compute_batch_accuracy(outputs, targets, labels)
-            
-    print(test_mean_acc)
-    print(test_accuracies)
-    plot_learning_curves(train_losses, valid_losses, train_accuracies, valid_accuracies)
+            outputs = test_model(inputs, lengths)
+            mean_test_accuracy, test_accuracies_dict = compute_batch_accuracy(outputs, targets, labels)
+    print(mean_test_accuracy)
+    print(test_accuracies_dict)
+
+
+    
+
+
+ 

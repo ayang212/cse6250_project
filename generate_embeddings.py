@@ -44,7 +44,7 @@ def main():
     output_data["training_data"] = file_output_list
 
     # generate vector for each doc with labels
-    with open("training_data2.json", "w") as outfile:
+    with open("training_data.json", "w") as outfile:
         json.dump(output_data, outfile)
                 
         
