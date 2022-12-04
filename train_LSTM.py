@@ -179,7 +179,7 @@ def compute_batch_accuracy(outputs, targets, labels):
         return mean_acc, all_outputs_dict
 
 def train_model(model, device, train_loader, criterion, optimizer, epoch, labels):
-    batch_time = AverageMeter()
+    train_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter()
     accuracy = AverageMeter()
@@ -211,11 +211,13 @@ def train_model(model, device, train_loader, criterion, optimizer, epoch, labels
         loss_train.backward()
         optimizer.step()
 
-        batch_time.update(time.time() - end)
-        end = time.time()
+        
+        
 
         losses.update(loss_train.item(), targets.size(0))
         accuracy.update(mean_accuracy_train.item(), targets.size(0))
+    train_time.update(time.time() - end)
+    print(f"time to train: {train_time.avg}")
 
     return losses.avg, accuracy.avg
 
@@ -300,7 +302,7 @@ if __name__ == "__main__":
         is_best = valid_accuracy > best_val_acc  # let's keep the model that has the best f1-score
         if is_best:
             best_val_acc = valid_accuracy
-            print(best_val_acc)
+            print(f"best epoch: {epoch}")
             torch.save(model, "LSTM_RNN_test.pth")
         
     plot_learning_curves(train_losses, valid_losses, train_accuracies, valid_accuracies)
